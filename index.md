@@ -1,6 +1,10 @@
-## Welcome to Social Media Scoring
+# Welcome to Social Media Scoring
 
 Using Social Data for Financial Inclusion of Unbanked People
 
-## About Us
+# Install 
+
+# RoadMap
+
+# About Us
 [about-us](./about_us)
