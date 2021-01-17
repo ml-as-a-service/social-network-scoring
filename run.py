@@ -119,10 +119,10 @@ def api_call(val):
     return result
 
 
-# login(EMAIL, PASSWORD)
+login(EMAIL, PASSWORD)
 profile = 'https://www.facebook.com/diurno.delsur'
 posts = get_post(profile,10)
-# browser.close()
+browser.close()
 
 
 report = {
