@@ -8,7 +8,7 @@ from selenium.common.exceptions import WebDriverException
 from selenium.webdriver.common.keys import Keys
 from selenium import webdriver
 import time
-
+import random  
 DOWNLOAD_PATH = 'C:\\Users\\Notebook\\Dropbox\\Trabajo\\FreeLancer\\Scrapy.Linkedin\\downloads'
    
 #############################################################################################################
@@ -16,7 +16,12 @@ DOWNLOAD_PATH = 'C:\\Users\\Notebook\\Dropbox\\Trabajo\\FreeLancer\\Scrapy.Linke
 #############################################################################################################
 def set_driver():
     # ChromeDriver Settings (12.2020)
+    # ChromeDriver Settings (12.2020)
     chrome_options = webdriver.ChromeOptions()
+    chrome_options.headless = True
+    chrome_options.add_argument('--no-sandbox')
+    chrome_options.add_experimental_option("excludeSwitches", ["enable-logging"])
+
     # Windows Driver Path (12.2020)
     driver = webdriver.Chrome(options=chrome_options, executable_path="driver\Windows\chromedriver.exe")
 
@@ -28,16 +33,13 @@ def set_driver():
 #   USER INPUT
 #############################################################################################################
 def user_input():
-    user = input("Ingrese correo:")
-    print('Su correo es %s' %user)
+    user = input("Ingrese correo: ")
+    print('Su correo es >> %s' %user)
     
-    password = input("Ingrese password:")
-    print('Su password es %s' %password)
+    password = input("Ingrese password: ")
+    print('Su password es >> %s' %password)
 
-    target = input("Ingrese perfil:")
-    print('Su password es %s' %target)
-
-    return (user, password, target)
+    return (user, password)
 
 #############################################################################################################
 #   LOGIN
@@ -73,58 +75,62 @@ def load_target_page (driver, target):
 def get_experience (driver):
     # Fist scroll to Experience (if not, ul and li are not discovered)
     # Hardcoded solution for linledin
-    driver.execute_script("window.scrollTo(0, window.scrollY + 1000)")
-    time.sleep(2)
-    driver.execute_script("window.scrollTo(0, window.scrollY + 300)")
-    time.sleep(2)
-    driver.execute_script("window.scrollTo(0, window.scrollY + 300)")
-    time.sleep(2)
+    time.sleep(4)
+    window_height = driver.execute_script("return window.innerHeight")
+    steps = 0
+    while steps * window_height < driver.execute_script("return document.body.offsetHeight"):
+        driver.execute_script("window.scrollTo(0, window.scrollY + 200)")
+        time.sleep(round(random.gauss(1, 0.3),2))
+        steps += 1
 
     try:
+        try:
+            # Buscar si hay seccion de mas experiencia
+            # Si hay desplegarla haciendo click en el boton
+            es = driver.find_element_by_xpath("//*[@id='experience-section']")
+            buttons = es.find_elements_by_tag_name("button")
+            for button in buttons:
+                if "experiencia" in button.text :
+                    offset = -20
+                    location_y = button.location.get('y') + offset
+                    driver.execute_script(
+                        "var location_y = arguments[0];\
+                        window.scrollTo(0, window.scrollY - location_y)",\
+                        location_y
+                    )
+                    time.sleep(round(random.gauss(1, 0.3),2))
+                    button.click()
+                    time.sleep(round(random.gauss(1, 0.3),2))
+        except Exception as e:
+            print(e)
+
+        # Con todas las experiencias de desplegadas realizo el scraping
         ul = driver.find_element_by_xpath("//*[@id='experience-section']/ul")
         li = ul.find_elements_by_tag_name("li")
-        counter = 0
+        print ("----------------------------------------")          
         for item in li:
             try: 
-                counter +=1
-                position = item.find_elements_by_tag_name ("h3")
-            
-                if len(position)>1:
+                cargos = item.find_elements_by_tag_name ("h3")
+
+                if len(cargos)>=2:
                     # Multiple cargos dentro de la empresa
-                    newli = item.find_elements_by_tag_name("li")
+                    # Me importa la empresa y el periodo total
+                    # No se scrapean cargos internos
                     buisness = item.find_elements_by_tag_name ("h3")[0].find_elements_by_tag_name("span")[1]
-                    total_period = item.find_elements_by_tag_name ("h4")[0].find_elements_by_tag_name("span")[1]    
-                    print ("Experiencia: %s (multiples cargos)" %counter)
+                    total_period = item.find_elements_by_tag_name ("h4")[0].find_elements_by_tag_name("span")[1]   
                     print ("Empresa: %s" %buisness.text)
                     print ("Período Total: %s" %total_period.text)
-                    print ('\n')
 
-                    for subitem in newli:
-                        position = subitem.find_elements_by_tag_name ("h3")[0].find_elements_by_tag_name("span")[1]
-                        position_dates = subitem.find_elements_by_tag_name ("h4")[0].find_elements_by_tag_name("span")[1]
-                        position_duration = subitem.find_elements_by_tag_name ("h4")[1].find_elements_by_tag_name("span")[1]
-                        print ("Cargo: %s" %position.text)
-                        print ("Período: %s" %position_dates.text)
-                        print ("Duración: %s" %position_duration.text)
-    
-                else:
+                if len(cargos)==1:
                     # Unico cargos dentro de la empresa
                     buisness = item.find_elements_by_tag_name ("p")[1]
                     period = item.find_elements_by_tag_name ("h4")[0].find_elements_by_tag_name("span")[1]
                     duration = item.find_elements_by_tag_name ("h4")[1].find_elements_by_tag_name("span")[1]
-                    try:
-                        location = item.find_elements_by_tag_name ("h4")[2].find_elements_by_tag_name("span")[1]
-                    except:
-                        location = 'Nan'
-
-                    print ("----------------------------------------")     
-                    print ("Experiencia: %s" %counter)
-                    print ("Cargo: %s" %position[0].text)
+                    print ("Cargo: %s" %cargos[0].text)
                     print ("Empresa: %s" %buisness.text)
                     print ("Período: %s" %period.text)
                     print ("Duración: %s" %duration.text)
-                    print ("Lugar: %s" %location.text)
-                    print ("----------------------------------------")
+                print ("----------------------------------------")
             except:
                 continue
 
@@ -135,30 +141,37 @@ def get_experience (driver):
 #   SCRAPE EXPERIENCIA
 #############################################################################################################
 def get_education(driver):
-    # Fist scroll to Experience (if not, ul and li are not discovered)
-    # Hardcoded solution for linledin
-    driver.execute_script("window.scrollTo(0, window.scrollY + 1000)")
-    time.sleep(2)
-    driver.execute_script("window.scrollTo(0, window.scrollY + 300)")
-    time.sleep(2)
-    print (">>>>>")
     try:
+        try:
+            # Buscar si hay seccion de mas experiencia
+            # Si hay desplegarla haciendo click en el boton
+            es = driver.find_element_by_xpath("//*[@id='education-section']")
+            buttons = es.find_elements_by_tag_name("button")
+            for button in buttons:
+                if "titulación " or "titulaciones" in button.text :
+                    offset = -20
+                    location_y = button.location.get('y') + offset
+                    driver.execute_script(
+                        "var location_y = arguments[0];\
+                        window.scrollTo(0, window.scrollY - location_y)",\
+                        location_y
+                    )
+                    time.sleep(round(random.gauss(1, 0.3),2))
+                    button.click()
+                    time.sleep(round(random.gauss(1, 0.3),2))
+        except Exception as e:
+            print(e)
+
         ul = driver.find_element_by_xpath("//*[@id='education-section']/ul")
         li = ul.find_elements_by_tag_name("li")
-        counter = 0
+        print ("----------------------------------------")  
         for item in li:
-            counter +=1
             academy = item.find_elements_by_tag_name ("h3")[0]
             degree_title = item.find_elements_by_tag_name ("p")[0].find_elements_by_tag_name("span")[1]
-            degree_field = item.find_elements_by_tag_name ("p")[1].find_elements_by_tag_name("span")[1]
-            period = item.find_elements_by_tag_name ("h4")[0].find_elements_by_tag_name("span")[1]
             print ("----------------------------------------")     
-            print ("Educación: %s" %counter)
-            print ("academy: %s" %academy.text)
-            print ("title: %s" %degree_title.text)
-            print ("area: %s" %degree_field.text)
-            print ("Período: %s" %period.text)
-            print ("----------------------------------------")
+            print ("Universidad: %s" %academy.text)
+            print ("Título: %s" %degree_title.text)
+        print ("----------------------------------------")
 
     except Exception as e:
         print(e)
@@ -205,13 +218,16 @@ def scrape_linkedin (user, password, target):
     except WebDriverException:
         print ('MAIN:: driver no encontrado')
 
-# PERFORMANCE
+#----------------------------------------------------------
+#                           MAIN
+#----------------------------------------------------------
 import time
 start = time.time()
 
-#user, password, target = user_input()
-#scrape_linkedin (user, password, target)
-#scrape_linkedin ('pez.payaso@hotmail.com', '$$test$$', 'mariogarciaar')
-scrape_linkedin ('kenji.nakasone@outlook.com', '$$control$$', 'mariogarciaar')
+email, password = user_input()
+#profile_name = 'mariogarciaar'
+profile_name = 'natalia-prevettoni-8779561b'
+scrape_linkedin (email, password, profile_name)
+
 print('It took', time.time()-start, 'seconds.')
 print ('------------------------------------------------')

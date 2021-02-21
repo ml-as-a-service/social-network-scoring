@@ -129,3 +129,5 @@ dmypy.json
 .pyre/
 
 linkedin-scraping/.vscode/
+
+linkedin-scraping/linkedin_scraping_full.py
